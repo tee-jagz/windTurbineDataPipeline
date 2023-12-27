@@ -13,6 +13,9 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST")
 
+# TODO: Possible implementation of last upload time for each turbine
+# TODO: Write tests
+
 
 # Setup logging
 # Reason: To keep track of the data processing
@@ -62,15 +65,6 @@ def fill_nas_with_mean(df: dataframe.DataFrame, colName: str) -> dataframe.DataF
 # Remove one of duplicate rows
 def remove_duplicate_rows(df: dataframe.DataFrame, columns: str or list) -> dataframe.DataFrame:
     df = df.dropDuplicates(columns)
-    return df
-
-
-# fill daily outliers with the mean of the nearest non-null values
-def fill_daily_outliers_with_mean(df: dataframe.DataFrame, colName: str) -> dataframe.DataFrame:
-    windowSpec = Window.partitionBy('turbine_id', 'date').orderBy('timestamp')
-    df = df.withColumn('mean_nearest', mean(col(colName)).over(windowSpec))
-    df = df.withColumn(colName, coalesce(col(colName), col('mean_nearest')))
-    df = df.drop('mean_nearest')
     return df
 
 
@@ -179,7 +173,7 @@ if __name__ == "__main__":
     clean_df = clean_data(sdf)
     logger.info('Data cleaned')
 
-    # Get the last uploaded times for each turbine
+    # Get the last uploaded time
     last_uploaded_dates = get_last_times()
     logger.info(f'Last upload time: {last_uploaded_dates} gotten')
 
