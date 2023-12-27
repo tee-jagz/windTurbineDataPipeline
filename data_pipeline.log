@@ -1,0 +1,68 @@
+2023-12-27 16:39:55 INFO     Starting data pipeline
+2023-12-27 16:39:57 INFO     Spark Session initialized
+2023-12-27 16:40:02 INFO     CSV files read into DataFrames
+2023-12-27 16:40:02 INFO     DataFrames joined
+2023-12-27 16:40:02 INFO     Duplicate rows removed
+2023-12-27 16:40:02 INFO     Date and time columns added
+2023-12-27 16:40:03 INFO     Data cleaned
+2023-12-27 16:40:04 INFO     Last upload time: 2022-03-31 23:00:00 gotten
+2023-12-27 16:40:04 INFO     Anomalies detected
+2023-12-27 16:40:04 INFO     New data filtered
+2023-12-27 16:40:08 INFO     Data uploaded
+2023-12-27 16:40:08 INFO     Daily statistics calculated
+2023-12-27 16:40:11 INFO     Daily statistics uploaded
+2023-12-27 16:40:12 INFO     Anomalies uploaded
+2023-12-27 16:40:13 INFO     Spark Session stopped
+2023-12-27 16:40:13 INFO     Closing down clientserver connection
+2023-12-27 16:41:39 INFO     Starting data pipeline
+2023-12-27 16:41:40 INFO     Spark Session initialized
+2023-12-27 16:41:45 INFO     CSV files read into DataFrames
+2023-12-27 16:41:45 INFO     DataFrames joined
+2023-12-27 16:41:45 INFO     Duplicate rows removed
+2023-12-27 16:41:45 INFO     Date and time columns added
+2023-12-27 16:41:46 INFO     Data cleaned
+2023-12-27 16:41:46 INFO     Last upload time: 2022-03-31 23:00:00 gotten
+2023-12-27 16:41:47 INFO     Anomalies detected
+2023-12-27 16:41:47 INFO     New data filtered
+2023-12-27 16:41:51 INFO     Data uploaded
+2023-12-27 16:41:51 INFO     Daily statistics calculated
+2023-12-27 16:41:53 INFO     Daily statistics uploaded
+2023-12-27 16:41:54 INFO     Anomalies uploaded
+2023-12-27 16:41:55 INFO     Spark Session stopped
+2023-12-27 16:41:55 INFO     Closing down clientserver connection
+2023-12-27 16:47:20 INFO     
+____________________________________________________________
+2023-12-27 16:47:20 INFO     Starting data pipeline
+2023-12-27 16:47:21 INFO     Spark Session initialized
+2023-12-27 16:47:26 INFO     CSV files read into DataFrames
+2023-12-27 16:47:26 INFO     DataFrames joined
+2023-12-27 16:47:26 INFO     Duplicate rows removed
+2023-12-27 16:47:26 INFO     Date and time columns added
+2023-12-27 16:47:27 INFO     Data cleaned
+2023-12-27 16:47:27 INFO     Last upload time: 2022-03-31 23:00:00 gotten
+2023-12-27 16:47:28 INFO     Anomalies detected
+2023-12-27 16:47:28 INFO     New data filtered
+2023-12-27 16:47:31 INFO     Data uploaded
+2023-12-27 16:47:31 INFO     Daily statistics calculated
+2023-12-27 16:47:34 INFO     Daily statistics uploaded
+2023-12-27 16:47:35 INFO     Anomalies uploaded
+2023-12-27 16:47:36 INFO     Spark Session stopped
+2023-12-27 16:47:36 INFO     Closing down clientserver connection
+2023-12-27 18:44:18 INFO     
+____________________________________________________________
+2023-12-27 18:44:18 INFO     Starting data pipeline
+2023-12-27 18:44:19 INFO     Spark Session initialized
+2023-12-27 18:44:24 INFO     CSV files read into DataFrames
+2023-12-27 18:44:24 INFO     DataFrames joined
+2023-12-27 18:44:24 INFO     Duplicate rows removed
+2023-12-27 18:44:24 INFO     Date and time columns added
+2023-12-27 18:44:25 INFO     Data cleaned
+2023-12-27 18:44:26 INFO     Last upload time: 2022-03-31 23:00:00 gotten
+2023-12-27 18:44:26 INFO     Anomalies detected
+2023-12-27 18:44:26 INFO     New data filtered
+2023-12-27 18:44:30 INFO     Data uploaded
+2023-12-27 18:44:30 INFO     Daily statistics calculated
+2023-12-27 18:44:32 INFO     Daily statistics uploaded
+2023-12-27 18:44:34 INFO     Anomalies uploaded
+2023-12-27 18:44:35 INFO     Spark Session stopped
+2023-12-27 18:44:35 INFO     Closing down clientserver connection
