@@ -4,7 +4,7 @@ from pyspark.sql.functions import mean, when, stddev, col, min, max, lag, lead, 
 from pyspark.sql import SparkSession, dataframe
 import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -14,6 +14,8 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST")
 
 # TODO: Possible implementation of last upload time for each turbine
+# TODO: Implement a filter of csv files for the last n days
+# TODO: Implement a scalable version of anomaly detection that filters for the last n days and uses that to detect anomalies
 # TODO: Write tests
 
 
@@ -62,7 +64,7 @@ def fill_nas_with_mean(df: dataframe.DataFrame, colName: str) -> dataframe.DataF
     return df
 
 
-# Remove one of duplicate rows
+# Remove duplicate rows based on the given columns
 def remove_duplicate_rows(df: dataframe.DataFrame, columns: str or list) -> dataframe.DataFrame:
     df = df.dropDuplicates(columns)
     return df
@@ -104,8 +106,14 @@ def detect_anomalies(df: dataframe.DataFrame, colName: str) -> dataframe.DataFra
     return df
 
 
+# Filter data for the last n days
+def filter_for_last_n_days(df: dataframe.DataFrame, n: int, last_upload_times: None or datetime) -> dataframe.DataFrame:
+    df = df.filter(df.timestamp > last_upload_times - timedelta(days=n))
+    return df
+
+
 # Filter out the data that has already been uploaded
-def filter_for_new_data(df: dataframe.DataFrame, last_upload_times: None or dict) -> dataframe.DataFrame:
+def filter_for_new_data(df: dataframe.DataFrame, last_upload_times: None or datetime) -> dataframe.DataFrame:
     df_filtered = df if last_upload_times == None else df.filter(df.timestamp > last_upload_times)
     return df_filtered
 
@@ -125,6 +133,14 @@ def upload_data_to_sql(df: dataframe.DataFrame, table_name: str) -> None:
         logger.error(f"Error uploading data to {table_name}: {e}")
 
 
+# Write the data to a csv file overwriting the existing file
+def write_to_csv(df: dataframe.DataFrame, file_name: str) -> None:
+    try:
+        df.write.mode('overwrite').option("header", "true").csv(file_name)
+    except Exception as e:
+        logger.error(f"Error writing data to csv file: {e}") 
+
+
 # Clean data
 def clean_data(df: dataframe.DataFrame) -> dataframe.DataFrame:
     columns = ['wind_speed', 'wind_direction', 'power_output']
@@ -140,6 +156,10 @@ if __name__ == "__main__":
     
     logger.info(f"\n{'_'*60}")
     logger.info('Starting data pipeline')
+
+    sdf1_path = './raw_data/data_group_1.csv'
+    sdf2_path = './raw_data/data_group_2.csv'
+    sdf3_path = './raw_data/data_group_3.csv'
     
     # Initialize Spark Session
     spark = SparkSession.builder.master('local').appName("WindTurbineDataPipeline") \
@@ -150,15 +170,35 @@ if __name__ == "__main__":
 
     spark.sparkContext.setLogLevel("ERROR")
 
+    # Get the last uploaded time
+    last_uploaded_dates = get_last_times()
+    logger.info(f'Last upload time: {last_uploaded_dates} gotten')
+
     # Read the CSV files into a DataFrames
-    sdf1 = spark.read.csv('./raw_data/data_group_1.csv', header=True, inferSchema=True)
-    sdf2 = spark.read.csv('./raw_data/data_group_2.csv', header=True, inferSchema=True)
-    sdf3 = spark.read.csv('./raw_data/data_group_3.csv', header=True, inferSchema=True)
+    sdf1 = spark.read.csv(sdf1_path, header=True, inferSchema=True)
+    sdf2 = spark.read.csv(sdf2_path, header=True, inferSchema=True)
+    sdf3 = spark.read.csv(sdf3_path, header=True, inferSchema=True)
     logger.info('CSV files read into DataFrames')
+
+    # Filter for the last 30 days
+    sdf1 = filter_for_last_n_days(sdf1, 30, last_uploaded_dates)
+    sdf2 = filter_for_last_n_days(sdf2, 30, last_uploaded_dates)
+    sdf3 = filter_for_last_n_days(sdf3, 30, last_uploaded_dates)
+    logger.info('Data filtered for the last 30 days')
+
+    # Write the filtered data to csv files
+    # write_to_csv(sdf1, sdf1_path)
+    # write_to_csv(sdf2, sdf2_path)
+    # write_to_csv(sdf3, sdf3_path)
+    # logger.info('Filtered data written to csv files')
 
     # Join the DataFrames
     sdf = sdf1.union(sdf2).union(sdf3)
     logger.info('DataFrames joined')
+
+    # Remove rows where timestamp is null
+    sdf = sdf.filter(sdf.timestamp.isNotNull())
+    logger.info('Rows with null timestamp removed')
 
     # Remove duplicate rows
     sdf = remove_duplicate_rows(sdf, ['timestamp', 'turbine_id'])
@@ -172,10 +212,6 @@ if __name__ == "__main__":
     # Clean the data
     clean_df = clean_data(sdf)
     logger.info('Data cleaned')
-
-    # Get the last uploaded time
-    last_uploaded_dates = get_last_times()
-    logger.info(f'Last upload time: {last_uploaded_dates} gotten')
 
     # Calculate the anomalies for each turbine
     anomalies_df = detect_anomalies(clean_df, 'power_output')
