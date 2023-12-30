@@ -1,6 +1,6 @@
 import logging
 from pyspark.sql.window import Window
-from pyspark.sql.functions import mean, when, stddev, col, min, max, lag, lead, coalesce, to_timestamp, abs, lit
+from pyspark.sql.functions import mean, when, stddev, col, min, max, lag, lead, coalesce, abs, lit
 from pyspark.sql import SparkSession, dataframe
 import os
 from dotenv import load_dotenv
@@ -13,11 +13,7 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST")
 
-# TODO: Possible implementation of last upload time for each turbine
-# TODO: Implement a filter of csv files for the last n days
-# TODO: Implement a scalable version of anomaly detection that filters for the last n days and uses that to detect anomalies
 # TODO: Write tests
-
 
 # Setup logging
 # Reason: To keep track of the data processing
@@ -128,9 +124,9 @@ def detect_anomalies(df: dataframe.DataFrame, colName: str, n_days : int) -> dat
 
 
 # Filter data for the last n days
-def filter_for_last_n_days(df: dataframe.DataFrame, start_time: datetime) -> dataframe.DataFrame:
-    df = df.filter(df.timestamp > start_time)
-    return df
+# def filter_for_last_n_days(df: dataframe.DataFrame, start_time: datetime) -> dataframe.DataFrame:
+#     df = df.filter(df.timestamp > start_time)
+#     return df
 
 
 # Filter out the data that has already been uploaded
@@ -150,17 +146,19 @@ def upload_data_to_sql(df: dataframe.DataFrame, table_name: str) -> None:
             .option("password", DB_PASSWORD) \
             .option("driver", "org.postgresql.Driver") \
             .save(mode='append')
-        logger.info(f"Data uploaded to {table_name}")
+        logger.info(f"{df.count()} rows uploaded to {table_name}")
     except Exception as e:
         logger.error(f"Error uploading data to {table_name}: {e}")
 
 
 # Write the data to a csv file overwriting the existing file
 def write_to_csv(df: dataframe.DataFrame, file_name: str) -> None:
+    df = df.filter(df.turbine_id > 0)
     try:
-        df.write.mode('overwrite').csv(file_name)
+        df.write.csv(file_name, mode='overwrite', header=True)
+        logger.info(f"Data written to '{file_name}'")
     except Exception as e:
-        logger.error(f"Error writing data to csv file: {e}") 
+        logger.error(f"Error writing data to '{file_name}': {e}") 
 
 
 # Clean data
@@ -179,9 +177,9 @@ if __name__ == "__main__":
     logger.info(f"\n{'_'*60}")
     logger.info('Starting data pipeline')
 
-    sdf1_path = './raw_data/data_group_1.csv'
-    sdf2_path = './raw_data/data_group_2.csv'
-    sdf3_path = './raw_data/data_group_3.csv'
+    sdf1_path = './raw_data_test/data_group_1.csv'
+    sdf2_path = './raw_data_test/data_group_2.csv'
+    sdf3_path = './raw_data_test/data_group_3.csv'
     
     # Initialize Spark Session
     spark = SparkSession.builder.master('local').appName("WindTurbineDataPipeline") \
@@ -189,7 +187,6 @@ if __name__ == "__main__":
     .config('spark.driver.extraClassPath', 'file:///c:/project/pyspark/jdbc_driver/postgresql-42.7.1.jar') \
     .getOrCreate()
     logger.info('Spark Session initialized')
-
     spark.sparkContext.setLogLevel("ERROR")
 
     # Set the number of hours to filter for
@@ -206,18 +203,6 @@ if __name__ == "__main__":
     sdf2 = spark.read.csv(sdf2_path, header=True, inferSchema=True)
     sdf3 = spark.read.csv(sdf3_path, header=True, inferSchema=True)
     logger.info('CSV files read into DataFrames')
-
-    # Filter for the last n (30) days
-    # sdf1 = filter_for_last_n_days(sdf1, start_time)
-    # sdf2 = filter_for_last_n_days(sdf2, start_time)
-    # sdf3 = filter_for_last_n_days(sdf3, start_time)
-    # logger.info(F'Data filtered for the last {N_HOURS} days')
-
-    # Write the filtered data to csv files
-    # write_to_csv(sdf1, sdf1_path)
-    # write_to_csv(sdf2, sdf2_path)
-    # write_to_csv(sdf3, sdf3_path)
-    # logger.info('Filtered data written to csv files')
 
     # Join the DataFrames
     sdf = sdf1.union(sdf2).union(sdf3)
@@ -251,11 +236,6 @@ if __name__ == "__main__":
     sdf = remove_duplicate_rows(sdf, ['timestamp', 'turbine_id'])
     logger.info('Duplicate rows removed')
 
-    # Add a column for the date and time
-    # sdf = sdf.withColumn('date', (col('timestamp')).cast('date'))
-    # sdf = sdf.withColumn('time', to_timestamp('timestamp', 'HH:mm:ss'))
-    # logger.info('Date and time columns added')
-
     # Clean the data
     clean_df = clean_data(sdf)
     logger.info('Data cleaned')
@@ -270,20 +250,7 @@ if __name__ == "__main__":
     # Calculate the anomalies for each turbine
     anomalies_df = detect_anomalies(joined_sdf, 'power_output', N_HOURS/24)
     logger.info('Anomalies detected')
-
-
-    print(sdf.show())
-    print(clean_df.show())
-    print(stats_df.show())
-    print(anomalies_df.show())
     
-
-    # Filter out the data that has already been uploaded
-    # filtered_raw_df = filter_for_new_data(sdf, last_uploaded_dates)
-    # filtered_clean_df = filter_for_new_data(clean_df, last_uploaded_dates)
-    # filtered_anomalies_df = filter_for_new_data(anomalies_df, last_uploaded_dates)
-    # logger.info('New data filtered')
-
     # Upload the raw and processed dataframes to the database
     upload_data_to_sql(sdf, 'turbine_data_raw') if sdf.count() > 0 else None
     upload_data_to_sql(clean_df, 'turbine_data_cleaned') if clean_df.count() > 0 else None
@@ -296,6 +263,12 @@ if __name__ == "__main__":
     # Upload the anomalies to the database
     upload_data_to_sql(anomalies_df, 'anomalies') if anomalies_df.count() > 0 else None
     logger.info('Anomalies uploaded')
+
+    # Write the filtered data to csv files
+    # write_to_csv(sdf1, sdf1_path)
+    # write_to_csv(sdf2, sdf2_path)
+    # write_to_csv(sdf3, sdf3_path)
+    # logger.info('Filtered data written to csv files')
 
     # Stop Spark Session
     spark.stop()
