@@ -36,3 +36,21 @@ This pipeline is implemented in Python, leveraging PySpark's powerful distribute
 ```console
 spark-submit --conf "spark.pyspark.python=C:/project/pyspark/venv/Scripts/python.exe" --jars file:///c:/project/pyspark/jdbc_driver/postgresql-42.7.1.jar file:///c:/project/pyspark/main.py
 ```
+
+## Screenshots from Database
+
+#### 'summary_statistics' Table
+
+![Summary Statistics table](./screenshot/summary_stats.png)
+
+#### 'anomalies' Table
+
+![Anomalies table](./screenshot/anomalies.png)
+
+#### 'turbine_data_cleaned' Table
+
+![Cleaned Data table](./screenshot/cleaned_data.png)
+
+#### 'turbine_data_raw' Table
+
+![Raw Data table](./screenshot/raw_data.png)
