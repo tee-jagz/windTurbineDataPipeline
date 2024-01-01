@@ -39,18 +39,14 @@ spark-submit --conf "spark.pyspark.python=C:/project/pyspark/venv/Scripts/python
 
 ## Screenshots from Database
 
-#### 'summary_statistics' Table
-
 ![Summary Statistics table](./screenshot/summary_stats.png)
-
-#### 'anomalies' Table
+_'summary_statistics' Table_
 
 ![Anomalies table](./screenshot/anomalies.png)
-
-#### 'turbine_data_cleaned' Table
+_'anomalies' Table_
 
 ![Cleaned Data table](./screenshot/cleaned_data.png)
-
-#### 'turbine_data_raw' Table
+_'turbine_data_cleaned' Table_
 
 ![Raw Data table](./screenshot/raw_data.png)
+_'turbine_data_raw' Table_
