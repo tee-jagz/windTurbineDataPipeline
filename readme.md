@@ -31,7 +31,7 @@ This pipeline is implemented in Python, leveraging PySpark's powerful distribute
 - The pipeline is designed to handle increases in data volume through Spark's distributed processing capabilities.
 - Partitioning strategies and Spark configurations may need tuning based on the actual data volume and infrastructure.
 
-Runs with the following command
+### Runs with the following command
 
 ```console
 spark-submit --conf "spark.pyspark.python=C:/project/pyspark/venv/Scripts/python.exe" --jars file:///c:/project/pyspark/jdbc_driver/postgresql-42.7.1.jar file:///c:/project/pyspark/main.py
