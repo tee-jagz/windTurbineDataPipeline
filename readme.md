@@ -5,18 +5,18 @@ This pipeline is implemented in Python, leveraging PySpark's powerful distribute
 ## Key Components
 
 1. Data Ingestion:
-   The pipeline reads data from CSV files, with each file corresponding to a group of turbines.
-   The files are updated daily and include data for the last 24 hours.
+   - The pipeline reads data from CSV files, with each file corresponding to a group of turbines.
+   - The files are updated daily and include data for the last 24 hours.
 2. Data Cleaning:
-   Handling Missing Values: The fill_nas_with_mean function imputes missing values using the mean of the nearest non-null values within each turbine's data.
-   Outlier Detection and Replacement: The replace_outliers_with_mean function identifies and replaces outliers (defined as values more than 2 standard deviations from the mean) with the mean of the column.
+   - Handling Missing Values: The fill_nas_with_mean function imputes missing values using the mean of the nearest non-null values within each turbine's data.
+   - Outlier Detection and Replacement: The replace_outliers_with_mean function identifies and replaces outliers (defined as values more than 2 standard deviations from the mean) with the mean of the column.
 3. Data Processing:
-   Summary Statistics: The calculate_stats function computes daily mean, minimum, and maximum power output for each turbine.
-   Anomaly Detection: The detect_anomalies function identifies significant deviations in power output using the 2-sigma rule.
+   - Summary Statistics: The calculate_stats function computes daily mean, minimum, and maximum power output for each turbine.
+   - Anomaly Detection: The detect_anomalies function identifies significant deviations in power output using the 2-sigma rule.
 4. Data Storage:
-   Processed data is uploaded to a PostgreSQL database using the upload_data_to_sql function for long-term storage and analysis.
+   - Processed data is uploaded to a PostgreSQL database using the upload_data_to_sql function for long-term storage and analysis.
 5. Logging and Monitoring:
-   The solution includes a logging mechanism to track the process and record any issues encountered during execution.
+   - The solution includes a logging mechanism to track the process and record any issues encountered during execution.
 
 ## Assumptions
 
