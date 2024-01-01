@@ -64,18 +64,12 @@ def get_data_from_sql(table_name: str, start_time: datetime) -> dataframe.DataFr
     return df
 
 
-# Calculate the mean of the nearest non-null values
-'''
-Reason: The data is sampled every 1 hour, so the nearest non-null values are likely 
-to be similar and it is good to keep as many data points as possible for analysis
-'''
+# Replace null values with the mean of the column
 def fill_nas_with_mean(df: dataframe.DataFrame, colName: str) -> dataframe.DataFrame:
     windowSpec = Window.partitionBy('turbine_id').orderBy('timestamp')
-    df = df.withColumn('prev_value', lag(colName, 1).over(windowSpec))
-    df = df.withColumn('next_value', lead(colName, 1).over(windowSpec))
-    df = df.withColumn('mean_nearest', (col('prev_value') + col('next_value'))/2)
-    df = df.withColumn(colName, coalesce(col(colName), col('mean_nearest')))
-    df = df.drop('prev_value', 'next_value', 'mean_nearest')
+    df = df.withColumn('mean', mean(col(colName)).over(windowSpec))
+    df = df.withColumn(colName, coalesce(col(colName), col('mean')))
+    df = df.drop('mean')
     return df
 
 
@@ -85,7 +79,7 @@ def remove_duplicate_rows(df: dataframe.DataFrame, columns: str or list) -> data
     return df
 
 
-# Replace outliers with the mean of the nearest non-null values
+# Replace outliers with the mean of the column
 def replace_outliers_with_mean(df: dataframe.DataFrame, colName: str) -> dataframe.DataFrame:
     windowSpec = Window.partitionBy('turbine_id').orderBy('timestamp')
     df = df.withColumn('mean', mean(colName).over(windowSpec))
@@ -123,12 +117,6 @@ def detect_anomalies(df: dataframe.DataFrame, colName: str, n_days : int) -> dat
     return df
 
 
-# Filter data for the last n days
-# def filter_for_last_n_days(df: dataframe.DataFrame, start_time: datetime) -> dataframe.DataFrame:
-#     df = df.filter(df.timestamp > start_time)
-#     return df
-
-
 # Filter out the data that has already been uploaded
 def filter_for_new_data(df: dataframe.DataFrame, last_upload_times: None or datetime) -> dataframe.DataFrame:
     df_filtered = df if last_upload_times == None else df.filter(df.timestamp > last_upload_times)
@@ -136,7 +124,7 @@ def filter_for_new_data(df: dataframe.DataFrame, last_upload_times: None or date
 
 
 # Upload the data to the database
-def upload_data_to_sql(df: dataframe.DataFrame, table_name: str) -> None:
+def upload_data_to_sql(df: dataframe.DataFrame, table_name: str) -> bool:
     try:
         df.write \
             .format("jdbc") \
@@ -147,19 +135,26 @@ def upload_data_to_sql(df: dataframe.DataFrame, table_name: str) -> None:
             .option("driver", "org.postgresql.Driver") \
             .save(mode='append')
         logger.info(f"{df.count()} rows uploaded to {table_name}")
+        return True
     except Exception as e:
         logger.error(f"Error uploading data to {table_name}: {e}")
+        return False
 
 
-# Write the data to a csv file overwriting the existing file
-def write_to_csv(df: dataframe.DataFrame, file_name: str) -> None:
-    df = df.filter(df.turbine_id > 0)
+# Clear the csv files of processed data
+'''
+Reason: The processed data is already in the database, so it is not needed in the csv files
+and it is good to keep the csv files as small as possible to improve read operations at the begginning of the pipeline
+'''
+def clear_csv(df: dataframe.DataFrame, file_name: str) -> None:
+    df = df.filter(df.turbine_id == 0)
+    df = df.toPandas()
     try:
-        df.write.csv(file_name, mode='overwrite', header=True)
-        logger.info(f"Data written to '{file_name}'")
+        df.to_csv(file_name, index=False)
+        logger.info(f"{file_name} file cleared")
     except Exception as e:
-        logger.error(f"Error writing data to '{file_name}': {e}") 
-
+        logger.error(f"Error writing data to {file_name}: {e}")
+    
 
 # Check stats exists in database
 def check_stats_exists_in_db(start_time: datetime, end_time: datetime) -> bool:
@@ -196,9 +191,9 @@ if __name__ == "__main__":
     logger.info(f"\n{'_'*60}")
     logger.info('Starting data pipeline')
 
-    sdf1_path = './raw_data_test/data_group_1.csv'
-    sdf2_path = './raw_data_test/data_group_2.csv'
-    sdf3_path = './raw_data_test/data_group_3.csv'
+    sdf1_path = './raw_data/data_group_1.csv'
+    sdf2_path = './raw_data/data_group_2.csv'
+    sdf3_path = './raw_data/data_group_3.csv'
     
     # Initialize Spark Session
     spark = SparkSession.builder.master('local').appName("WindTurbineDataPipeline") \
@@ -210,7 +205,7 @@ if __name__ == "__main__":
 
     # Set the number of hours to filter for
     # In this case, it is set to 30 days
-    N_HOURS = 64
+    N_HOURS = 720
     logger.info(f'Number of hours to filter for: {N_HOURS}')
 
     # Get the last uploaded time
@@ -227,9 +222,16 @@ if __name__ == "__main__":
     sdf = sdf1.union(sdf2).union(sdf3)
     logger.info('DataFrames joined')
 
-    # Filter out for new data
+    # Set dataframe data types
+    sdf = sdf.withColumn('timestamp', sdf['timestamp'].cast('timestamp'))
+    sdf = sdf.withColumn('turbine_id', sdf['turbine_id'].cast('int'))
+    sdf = sdf.withColumn('wind_speed', sdf['wind_speed'].cast('float'))
+    sdf = sdf.withColumn('wind_direction', sdf['wind_direction'].cast('float'))
+    sdf = sdf.withColumn('power_output', sdf['power_output'].cast('float'))
+    logger.info('Data types set')
+
+    # Filter for new data
     sdf = filter_for_new_data(sdf, last_uploaded_time)
-    logger.info('New data filtered')
 
     # Get the latest time from csv files
     latest_csv_time = sdf.agg(max('timestamp')).collect()[0][0]
@@ -272,23 +274,23 @@ if __name__ == "__main__":
     logger.info(f"{'No a' if anomalies_df.count() == 0 else 'A'}nomalies detected")
     
     # Upload the raw and processed dataframes to the database
-    upload_data_to_sql(sdf, 'turbine_data_raw') if sdf.count() > 0 else None
-    upload_data_to_sql(clean_df, 'turbine_data_cleaned') if clean_df.count() > 0 else None
-    logger.info(f'Data upload to database section {"skipped" if (sdf.count() == 0 and clean_df.count() == 0) else "complete"}')
+    raw_data_upload = upload_data_to_sql(sdf, 'turbine_data_raw') if sdf.count() > 0 else False
+    clean_data_upload = upload_data_to_sql(clean_df, 'turbine_data_cleaned') if clean_df.count() > 0 else False
+    logger.info(f'Data upload to database section {"completed" if (raw_data_upload or clean_data_upload) else "skipped"}')
 
     # Upload the daily statistics and anomalies to the database
-    upload_data_to_sql(stats_df, 'summary_statistics') if check_stats_in_db == False else None
-    logger.info(f"Daily statistics upload section {'skipped' if check_stats_in_db else 'complete'}")
+    stat_upload = upload_data_to_sql(stats_df, 'summary_statistics') if check_stats_in_db == False else False
+    logger.info(f"Daily statistics upload section {'complete' if stat_upload else 'skipped'}")
 
     # Upload the anomalies to the database
-    upload_data_to_sql(anomalies_df, 'anomalies') if anomalies_df.count() > 0 else None
-    logger.info(f"Anomalies upload section {'skipped' if anomalies_df.count() == 0 else 'complete'}")
+    anomalies_upload = upload_data_to_sql(anomalies_df, 'anomalies') if anomalies_df.count() > 0 else False
+    logger.info(f"Anomalies upload section {'complete' if anomalies_upload else 'skipped'}")
 
     # Write the filtered data to csv files
-    # write_to_csv(sdf1, sdf1_path)
-    # write_to_csv(sdf2, sdf2_path)
-    # write_to_csv(sdf3, sdf3_path)
-    # logger.info('Filtered data written to csv files')
+    clear_csv(sdf1, sdf1_path) if raw_data_upload or clean_data_upload else None
+    clear_csv(sdf2, sdf2_path) if raw_data_upload or clean_data_upload else None
+    clear_csv(sdf3, sdf3_path) if raw_data_upload or clean_data_upload else None
+    logger.info('Filtered data written to csv files') if raw_data_upload or clean_data_upload else None
 
     # Stop Spark Session
     spark.stop()
