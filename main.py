@@ -5,6 +5,7 @@ from pyspark.sql import SparkSession, dataframe
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+import pandas as pd
 
 load_dotenv()
 
@@ -97,7 +98,7 @@ def replace_outliers_with_mean(df: dataframe.DataFrame, colName: str) -> datafra
     return df
 
 
-# Calculate the mean, min and max values of each turbine for each day
+# Calculate the mean, min and max values of each turbine
 def calculate_stats(df: dataframe.DataFrame, colName: str, start_time: datetime, end_time: datetime) -> dataframe.DataFrame:
     df = df.groupBy('turbine_id').agg(
         mean(col(colName)).alias('avg_'+colName),
@@ -117,7 +118,6 @@ def detect_anomalies(df: dataframe.DataFrame, colName: str, n_days : int) -> dat
     df = df.withColumn('lower_bound_'+colName, col('mean_'+colName) - 2 * col('stddev_'+colName)) \
         .withColumn('upper_bound_'+colName, col('mean_'+colName) + 2 * col('stddev_'+colName))
     df = df.filter((col(colName) < col('lower_bound_'+colName)) | (col(colName) > col('upper_bound_'+colName)))
-    print(df.show())
     df = df.withColumn('calc_days', lit(n_days))
     df = df.drop('mean_'+colName, 'stddev_'+colName, 'wind_speed', 'wind_direction')
     return df
@@ -161,6 +161,25 @@ def write_to_csv(df: dataframe.DataFrame, file_name: str) -> None:
         logger.error(f"Error writing data to '{file_name}': {e}") 
 
 
+# Check stats exists in database
+def check_stats_exists_in_db(start_time: datetime, end_time: datetime) -> bool:
+    url = f"jdbc:postgresql://{DB_HOST}/{DB_NAME}"
+    properties = {
+        "user": DB_USER,
+        "password": DB_PASSWORD,
+        "driver": "org.postgresql.Driver"
+    }
+    query = f"(SELECT COUNT(*) FROM summary_statistics WHERE timestamp_from = '{start_time}' AND timestamp_to = '{end_time}') AS stats_exists"
+    try:
+        stats_exists = spark.read.jdbc(url=url, table=query, properties=properties)
+        logger.info(f"Checked if stats exists in database")
+    except Exception as e:
+        logger.error(f"Error checking if stats exists in database: {e}")
+        return False
+    
+    return True if stats_exists.collect()[0][0] > 0 else False
+
+
 # Clean data
 def clean_data(df: dataframe.DataFrame) -> dataframe.DataFrame:
     columns = ['wind_speed', 'wind_direction', 'power_output']
@@ -191,12 +210,12 @@ if __name__ == "__main__":
 
     # Set the number of hours to filter for
     # In this case, it is set to 30 days
-    N_HOURS = 48
+    N_HOURS = 64
     logger.info(f'Number of hours to filter for: {N_HOURS}')
 
     # Get the last uploaded time
-    last_uploaded_dates = get_last_times()
-    logger.info(f'Last upload time: {last_uploaded_dates} gotten')
+    last_uploaded_time = get_last_times()
+    logger.info(f'Last upload time: {last_uploaded_time} gotten')
     
     # Read the CSV files into a DataFrames
     sdf1 = spark.read.csv(sdf1_path, header=True, inferSchema=True)
@@ -209,7 +228,7 @@ if __name__ == "__main__":
     logger.info('DataFrames joined')
 
     # Filter out for new data
-    sdf = filter_for_new_data(sdf, last_uploaded_dates)
+    sdf = filter_for_new_data(sdf, last_uploaded_time)
     logger.info('New data filtered')
 
     # Get the latest time from csv files
@@ -217,7 +236,7 @@ if __name__ == "__main__":
     logger.info(f'Latest time from csv files: {latest_csv_time}')
 
     # Get the end time for statistics and anomalies
-    end_time = latest_csv_time if latest_csv_time != None else last_uploaded_dates
+    end_time = latest_csv_time if latest_csv_time != None else last_uploaded_time
     logger.info(f'End time for statistics and anomalies: {end_time}')
 
     # Get the start time for statistics and anomalies
@@ -243,26 +262,27 @@ if __name__ == "__main__":
     # Join the data from the database with the new data
     joined_sdf = clean_df.union(sdf_db) if sdf_db != None else clean_df
 
-    # Calculate the daily statistics for each turbine
-    stats_df = calculate_stats(joined_sdf.select('turbine_id', 'power_output'), 'power_output', start_time, end_time)
-    logger.info('Daily statistics calculated')
+    # Calculate the statistics for each turbine
+    check_stats_in_db = check_stats_exists_in_db(start_time, end_time)
+    stats_df = calculate_stats(joined_sdf.select('turbine_id', 'power_output'), 'power_output', start_time, end_time) if check_stats_in_db == False else None
+    logger.info('Statistics calculated' if stats_df != None else 'Statistics calculation skipped')
 
     # Calculate the anomalies for each turbine
     anomalies_df = detect_anomalies(joined_sdf, 'power_output', N_HOURS/24)
-    logger.info('Anomalies detected')
+    logger.info(f"{'No a' if anomalies_df.count() == 0 else 'A'}nomalies detected")
     
     # Upload the raw and processed dataframes to the database
     upload_data_to_sql(sdf, 'turbine_data_raw') if sdf.count() > 0 else None
     upload_data_to_sql(clean_df, 'turbine_data_cleaned') if clean_df.count() > 0 else None
-    logger.info('Data upload to database complete')
+    logger.info(f'Data upload to database section {"skipped" if (sdf.count() == 0 and clean_df.count() == 0) else "complete"}')
 
     # Upload the daily statistics and anomalies to the database
-    upload_data_to_sql(stats_df, 'summary_statistics')
-    logger.info('Daily statistics uploaded')
+    upload_data_to_sql(stats_df, 'summary_statistics') if check_stats_in_db == False else None
+    logger.info(f"Daily statistics upload section {'skipped' if check_stats_in_db else 'complete'}")
 
     # Upload the anomalies to the database
     upload_data_to_sql(anomalies_df, 'anomalies') if anomalies_df.count() > 0 else None
-    logger.info('Anomalies uploaded')
+    logger.info(f"Anomalies upload section {'skipped' if anomalies_df.count() == 0 else 'complete'}")
 
     # Write the filtered data to csv files
     # write_to_csv(sdf1, sdf1_path)
