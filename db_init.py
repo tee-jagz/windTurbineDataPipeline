@@ -23,46 +23,46 @@ db_params = {
 create_tables_commands = (
     """
     CREATE TABLE IF NOT EXISTS turbine_data_raw (
-        Date DATE NOT NULL,
-        Time TIME NOT NULL,
-        TurbineID INTEGER NOT NULL,
-        WindSpeed REAL,
-        WindDirection INTEGER,
-        PowerOutput REAL,
-        PRIMARY KEY (TurbineID, Date, Time)
+        timestamp TIMESTAMP NOT NULL,
+        turbine_id INTEGER NOT NULL,
+        wind_speed REAL,
+        wind_direction INTEGER,
+        power_output REAL,
+        PRIMARY KEY (timestamp, turbine_id)
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS turbine_data_cleaned (
-        Date DATE NOT NULL,
-        Time TIME NOT NULL,
-        TurbineID INTEGER NOT NULL,
-        WindSpeed REAL,
-        WindDirection INTEGER,
-        PowerOutput REAL,
-        PowerOutputFilled REAL,
-        PRIMARY KEY (TurbineID, Date, Time)
+        timestamp TIMESTAMP NOT NULL,
+        turbine_id INTEGER NOT NULL,
+        wind_speed REAL,
+        wind_direction INTEGER,
+        power_output REAL,
+        PRIMARY KEY (timestamp, turbine_id)
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS summary_statistics (
-        TurbineID INTEGER NOT NULL,
-        Date DATE NOT NULL,
-        MinPowerOutput REAL,
-        MaxPowerOutput REAL,
-        AvgPowerOutput REAL,
-        PRIMARY KEY (TurbineID, Date)
+        stat_id SERIAL PRIMARY KEY,
+        turbine_id INTEGER NOT NULL,
+        min_power_output REAL,
+        max_power_output REAL,
+        avg_power_output REAL,
+        timestamp_from TIMESTAMP NOT NULL,
+        timestamp_to TIMESTAMP NOT NULL,
+        PRIMARY KEY (stat_id)
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS anomalies (
-        TurbineID INTEGER NOT NULL,
-        Date DATE NOT NULL,
-        Time TIME NOT NULL,
-        MeasuredPowerOutput REAL,
-        ExpectedRangeLow REAL,
-        ExpectedRangeHigh REAL,
-        PRIMARY KEY (TurbineID, Date, Time)
+        anomaly_id SERIAL PRIMARY KEY,
+        turbine_id INTEGER NOT NULL,
+        power_output REAL,
+        lower_bound_power_output REAL,
+        upper_bound_power_output REAL,
+        timestamp TIMESTAMP NOT NULL,
+        calc_days INTEGER NOT NULL,
+        PRIMARY KEY (anomaly_id)
    )
     """
 )

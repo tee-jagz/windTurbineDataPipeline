@@ -1,8 +1,17 @@
 import psycopg2
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
 
 #establishing the connection
 conn = psycopg2.connect(
-   database="postgres", user='postgres', password='root', host='127.0.0.1', port= '5432'
+   database=DB_NAME, user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port= '5432'
 )
 conn.autocommit = True
 
