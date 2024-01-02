@@ -287,7 +287,7 @@ if __name__ == "__main__":
     logger.info(f"Anomalies upload section {'complete' if anomalies_upload else 'skipped'}")
 
     # Write the filtered data to csv files
-    if raw_data_upload or clean_data_upload:
+    if raw_data_upload and clean_data_upload:
         clear_csv(sdf1, sdf1_path)
         clear_csv(sdf2, sdf2_path)
         clear_csv(sdf3, sdf3_path)
