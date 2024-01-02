@@ -11,8 +11,8 @@ This pipeline is implemented in Python, leveraging PySpark's powerful distribute
    - Handling Missing Values: The fill_nas_with_mean function imputes missing values using the mean of the nearest non-null values within each turbine's data.
    - Outlier Detection and Replacement: The replace_outliers_with_mean function identifies and replaces outliers (defined as values more than 2 standard deviations from the mean) with the mean of the column.
 3. Data Processing:
-   - Summary Statistics: The calculate_stats function computes daily mean, minimum, and maximum power output for each turbine.
-   - Anomaly Detection: The detect_anomalies function identifies significant deviations in power output using the 2-sigma rule.
+   - Summary Statistics: The calculate_stats function computes the mean, minimum, and maximum power output for each turbine over a selected period of time.
+   - Anomaly Detection: The detect_anomalies function identifies significant deviations in power output over a selected period of time.
 4. Data Storage:
    - Processed data is uploaded to a PostgreSQL database using the upload_data_to_sql function for long-term storage and analysis.
 5. Logging and Monitoring:
@@ -22,9 +22,10 @@ This pipeline is implemented in Python, leveraging PySpark's powerful distribute
 
 1. Data Format and Consistency: It is assumed that the CSV files have a consistent format and contain the required columns for all turbines.
 2. Data Completeness: While the system may miss some entries, it is assumed that the provided data is largely complete and representative of the turbine outputs.
-3. Outlier Definition: Outliers are defined based on standard deviation, which assumes a normal distribution of data. This might not hold true in all cases.
+3. Outlier Definition: Outliers are defined based on standard deviation, which assumes a normal distribution of data.
 4. Database Accessibility: The script assumes uninterrupted access to the PostgreSQL database with sufficient permissions for data operations.
 5. System Resources: Adequate system resources (memory, CPU) are available for Spark to process the data efficiently, considering the potential for data volume growth.
+6. Scheduled Run: It is assumed that the script will be the scheduled to run after the csv files have been appended at a preagreed fixed time.
 
 ## Scalability and Performance
 
