@@ -14,7 +14,19 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST")
 
-# TODO: Write tests
+
+# Decorator for connection property to the sql database
+def connect_property(func):
+    def wrap_and_call(*args, **kwargs):
+        kwargs['url'] = f"jdbc:postgresql://{DB_HOST}/{DB_NAME}"
+        kwargs['properties'] = {
+                                "user": DB_USER,
+                                "password": DB_PASSWORD,
+                                "driver": "org.postgresql.Driver"
+                                }
+        return func(*args, **kwargs)
+    return wrap_and_call
+
 
 # Setup logging
 # Reason: To keep track of the data processing
@@ -30,16 +42,11 @@ def setup_logging():
 
 # Get the last uploaded dates for each turbine
 # Assumption: New data continues from the day after the last uploaded date
-def get_last_times() -> datetime or None:
-    url = f"jdbc:postgresql://{DB_HOST}/{DB_NAME}"
-    properties = {
-        "user": DB_USER,
-        "password": DB_PASSWORD,
-        "driver": "org.postgresql.Driver"
-    }
+@connect_property
+def get_last_times(**kwargs) -> datetime or None:
     query = "(SELECT MAX(timestamp) AS max_time FROM turbine_data_raw) AS last_time"
     try:
-        last_time = spark.read.jdbc(url=url, table=query, properties=properties)
+        last_time = spark.read.jdbc(url=kwargs['url'], table=query, properties=kwargs['properties'])
     except Exception as e:
         logger.error(f"Error getting last upload time: {e}")
         return None
@@ -47,16 +54,11 @@ def get_last_times() -> datetime or None:
 
 
 # Query the database for all the data in the last n hours from a table
-def get_data_from_sql(table_name: str, start_time: datetime) -> dataframe.DataFrame:
-    url = f"jdbc:postgresql://{DB_HOST}/{DB_NAME}"
-    properties = {
-        "user": DB_USER,
-        "password": DB_PASSWORD,
-        "driver": "org.postgresql.Driver"
-    }
+@connect_property
+def get_data_from_sql(table_name: str, start_time: datetime, **kwargs) -> dataframe.DataFrame:
     query = f"(SELECT * FROM {table_name} WHERE timestamp > '{start_time}') AS last_n_hours"
     try:
-        df = spark.read.jdbc(url=url, table=query, properties=properties)
+        df = spark.read.jdbc(url=kwargs['url'], table=query, properties=kwargs['properties'])
         logger.info(f"Data gotten from {table_name}")
     except Exception as e:
         logger.error(f"Error getting data from {table_name}: {e}")
@@ -124,16 +126,15 @@ def filter_for_new_data(df: dataframe.DataFrame, last_upload_times: None or date
 
 
 # Upload the data to the database
-def upload_data_to_sql(df: dataframe.DataFrame, table_name: str) -> bool:
+@connect_property
+def upload_data_to_sql(df: dataframe.DataFrame, table_name: str, **kwargs) -> bool:
     try:
-        df.write \
-            .format("jdbc") \
-            .option("url", f"jdbc:postgresql://{DB_HOST}/{DB_NAME}") \
-            .option("dbtable", table_name) \
-            .option("user", DB_USER) \
-            .option("password", DB_PASSWORD) \
-            .option("driver", "org.postgresql.Driver") \
-            .save(mode='append')
+        df.write.jdbc(
+            url=kwargs['url'],
+            table=table_name,
+            mode='append',
+            properties=kwargs['properties']
+        )
         logger.info(f"{df.count()} rows uploaded to {table_name}")
         return True
     except Exception as e:
@@ -157,16 +158,11 @@ def clear_csv(df: dataframe.DataFrame, file_name: str) -> None:
     
 
 # Check stats exists in database
-def check_stats_exists_in_db(start_time: datetime, end_time: datetime) -> bool:
-    url = f"jdbc:postgresql://{DB_HOST}/{DB_NAME}"
-    properties = {
-        "user": DB_USER,
-        "password": DB_PASSWORD,
-        "driver": "org.postgresql.Driver"
-    }
+@connect_property
+def check_stats_exists_in_db(start_time: datetime, end_time: datetime, **kwargs) -> bool:
     query = f"(SELECT COUNT(*) FROM summary_statistics WHERE timestamp_from = '{start_time}' AND timestamp_to = '{end_time}') AS stats_exists"
     try:
-        stats_exists = spark.read.jdbc(url=url, table=query, properties=properties)
+        stats_exists = spark.read.jdbc(url=kwargs['url'], table=query, properties=kwargs['properties'])
         logger.info(f"Checked if stats exists in database")
     except Exception as e:
         logger.error(f"Error checking if stats exists in database: {e}")
