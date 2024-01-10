@@ -6209,3 +6209,28 @@ ____________________________________________________________
 2024-01-10 23:04:24 INFO     Anomalies upload section skipped
 2024-01-10 23:04:25 INFO     Spark Session stopped
 2024-01-10 23:04:25 INFO     Closing down clientserver connection
+2024-01-10 23:27:09 INFO     
+____________________________________________________________
+2024-01-10 23:27:09 INFO     Starting data pipeline
+2024-01-10 23:27:11 INFO     Spark Session initialized
+2024-01-10 23:27:11 INFO     Number of hours to filter for: 720
+2024-01-10 23:27:15 INFO     Last upload time: 2022-03-31 23:00:00 gotten
+2024-01-10 23:27:19 INFO     CSV files read into DataFrames
+2024-01-10 23:27:19 INFO     DataFrames joined
+2024-01-10 23:27:19 INFO     Data types set
+2024-01-10 23:27:20 INFO     Latest time from csv files: None
+2024-01-10 23:27:20 INFO     End time for statistics and anomalies: 2022-03-31 23:00:00
+2024-01-10 23:27:20 INFO     Start time for statistics and anomalies: 2022-03-01 23:00:00
+2024-01-10 23:27:20 INFO     Data gotten from turbine_data_raw
+2024-01-10 23:27:20 INFO     Data from database gotten
+2024-01-10 23:27:20 INFO     Rows with null timestamp removed
+2024-01-10 23:27:20 INFO     Duplicate rows removed
+2024-01-10 23:27:21 INFO     Data cleaned
+2024-01-10 23:27:21 INFO     Checked if stats exists in database
+2024-01-10 23:27:21 INFO     Statistics calculation skipped
+2024-01-10 23:27:24 INFO     No anomalies detected
+2024-01-10 23:27:25 INFO     Data upload to database section skipped
+2024-01-10 23:27:25 INFO     Daily statistics upload section skipped
+2024-01-10 23:27:26 INFO     Anomalies upload section skipped
+2024-01-10 23:27:26 INFO     Spark Session stopped
+2024-01-10 23:27:26 INFO     Closing down clientserver connection
